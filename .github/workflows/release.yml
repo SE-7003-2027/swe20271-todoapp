@@ -1,0 +1,134 @@
+name: Liberar Nueva Versión
+
+# Se activa cuando se empuja una etiqueta de versión (ej. v0.1.0).
+# Compila el backend de Go para tres plataformas y crea un GitHub Release.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  pruebas:
+    name: Verificar Pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: backend/go.sum
+
+      - name: Ejecutar pruebas del backend
+        working-directory: backend
+        run: go test ./... -timeout 60s
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias del frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Ejecutar pruebas del frontend
+        working-directory: frontend
+        run: npm test -- --passWithNoTests --watchAll=false
+
+  compilar:
+    name: Compilar Binarios Go (${{ matrix.os }}-${{ matrix.arch }})
+    needs: pruebas
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            os: linux
+            arch: amd64
+          - goos: darwin
+            goarch: arm64
+            os: darwin
+            arch: arm64
+          - goos: windows
+            goarch: amd64
+            os: windows
+            arch: amd64
+
+    steps:
+      - name: Obtener código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: backend/go.sum
+
+      - name: Compilar binario
+        working-directory: backend
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          NOMBRE_BINARIO="studynotes-api-${{ matrix.os }}-${{ matrix.arch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            NOMBRE_BINARIO="${NOMBRE_BINARIO}.exe"
+          fi
+          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+            -o "../dist/${NOMBRE_BINARIO}" \
+            ./cmd/api/main.go
+
+      - name: Subir binario como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: binario-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
+
+  liberar:
+    name: Crear GitHub Release
+    needs: compilar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código fuente
+        uses: actions/checkout@v4
+
+      - name: Descargar todos los binarios compilados
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Crear Release con binarios
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Versión ${{ github.ref_name }}"
+          body: |
+            ## StudyNotes / TaskSync ${{ github.ref_name }}
+
+            Consulta el [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) para ver los cambios detallados de esta versión.
+
+            ### Binarios incluidos
+            | Plataforma | Arquitectura | Archivo |
+            |---|---|---|
+            | Linux | amd64 | `studynotes-api-linux-amd64` |
+            | macOS | arm64 | `studynotes-api-darwin-arm64` |
+            | Windows | amd64 | `studynotes-api-windows-amd64.exe` |
+
+            ### Inicio rápido con Docker
+            ```bash
+            docker compose up --build
+            ```
+          files: dist/*
+          draft: false
+          prerelease: false

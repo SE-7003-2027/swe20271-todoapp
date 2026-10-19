@@ -1,0 +1,45 @@
+version: "3.9"
+
+# Topología Docker Compose para desarrollo local
+# Inicia el API de Go y el frontend de React (Nginx sirve el build de Vite)
+
+services:
+  # ─────────────────────────────────────────────
+  # Servicio: API backend en Go
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: studynotes_api
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    # Reiniciar automáticamente en caso de fallo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # Servicio: Frontend React (Nginx sirve el bundle de Vite)
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Deshabilitar el modo mock para que el frontend apunte al API
+        VITE_USE_MOCK: "false"
+        VITE_API_URL: "http://localhost:8080"
+    container_name: studynotes_frontend
+    ports:
+      - "3000:80"
+    # Esperar a que el API esté saludable antes de iniciar
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

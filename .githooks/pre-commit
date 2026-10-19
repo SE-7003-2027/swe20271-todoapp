@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# Gancho Git: pre-commit
+# Ejecuta las pruebas unitarias del backend y el frontend antes de cada
+# confirmación para evitar que código roto llegue al historial.
+#
+# Instalación:
+#   git config core.hooksPath .githooks
+#   chmod +x .githooks/pre-commit
+# ─────────────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+# Colores para la salida en terminal
+ROJO='\033[0;31m'
+VERDE='\033[0;32m'
+AMARILLO='\033[1;33m'
+SIN_COLOR='\033[0m'
+
+RAIZ_REPO="$(git rev-parse --show-toplevel)"
+
+echo -e "${AMARILLO}▶ Ejecutando verificaciones previas a la confirmación...${SIN_COLOR}"
+echo ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Pruebas unitarias del backend en Go
+# ─────────────────────────────────────────────────────────────────────────────
+echo -e "${AMARILLO}[1/2] Pruebas del backend (Go)...${SIN_COLOR}"
+if ! (cd "${RAIZ_REPO}/backend" && go test ./... -timeout 30s); then
+  echo -e "${ROJO}✗ Las pruebas del backend fallaron. Confirmación abortada.${SIN_COLOR}"
+  exit 1
+fi
+echo -e "${VERDE}✓ Pruebas del backend exitosas.${SIN_COLOR}"
+echo ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Pruebas unitarias del frontend (Jest)
+# ─────────────────────────────────────────────────────────────────────────────
+echo -e "${AMARILLO}[2/2] Pruebas del frontend (Jest)...${SIN_COLOR}"
+if ! (cd "${RAIZ_REPO}/frontend" && npm test -- --passWithNoTests --watchAll=false 2>&1); then
+  echo -e "${ROJO}✗ Las pruebas del frontend fallaron. Confirmación abortada.${SIN_COLOR}"
+  exit 1
+fi
+echo -e "${VERDE}✓ Pruebas del frontend exitosas.${SIN_COLOR}"
+echo ""
+
+echo -e "${VERDE}✓ Todas las verificaciones pasaron. Procediendo con la confirmación.${SIN_COLOR}"
+exit 0

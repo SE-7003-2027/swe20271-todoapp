@@ -1,0 +1,20 @@
+// El usuario solicita crear una nota mediante una petición POST con un título válido y se recibe la nota creada exitosamente.
+NOTES-API-001 WHEN a POST request is made to /api/v1/notes with a valid title THEN the system shall create a new note and return a 201 Created status.
+
+// El usuario solicita crear una nota pero envía un título en blanco, por lo que el sistema debe rechazar la petición indicando un error en la validación.
+NOTES-API-002 WHEN a POST request is made to /api/v1/notes with an empty title THEN the system shall return a 400 Bad Request status with a validation error.
+
+// El usuario solicita crear una nota excediendo el límite máximo de caracteres en el título (100), resultando en el rechazo por parte del servidor.
+NOTES-API-003 WHEN a POST request is made to /api/v1/notes with a title exceeding 100 characters THEN the system shall return a 400 Bad Request status with a validation error.
+
+// El usuario obtiene su lista de notas existentes al acceder al endpoint, y el sistema entrega un arreglo con la información dispuesta desde la más reciente.
+NOTES-API-004 WHEN a GET request is made to /api/v1/notes THEN the system shall return a 200 OK status with a list of all notes ordered by newest first.
+
+// El usuario actualiza el estado de completado de una nota existente proveyendo su identificador único al endpoint correspondiente, lo que alterna el estado del registro.
+NOTES-API-005 WHEN a PATCH request is made to /api/v1/notes/{id}/status for an existing note THEN the system shall toggle its completed status and return a 200 OK status.
+
+// El usuario intenta modificar el estado usando el identificador de una nota inexistente; el servidor le informa que el recurso no fue hallado.
+NOTES-API-006 WHEN a PATCH request is made to /api/v1/notes/{id}/status for a non-existent note THEN the system shall return a 404 Not Found status.
+
+// El usuario ejecuta una petición cualquiera y ocurre un fallo grave en el sistema, produciéndose una respuesta que describe el error genérico.
+NOTES-API-007 WHEN an unhandled exception occurs in the server THEN the system shall return a 500 Internal Server Error status.

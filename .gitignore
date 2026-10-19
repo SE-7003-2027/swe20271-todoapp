@@ -1,0 +1,24 @@
+# Dependencias y compilación de Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Binarios y artefactos de Backend (Go)
+backend/bin/
+backend/api
+backend/*.exe
+backend/*.out
+backend/coverage.txt
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Archivos del sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

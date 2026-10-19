@@ -1,0 +1,69 @@
+name: Desplegar en GitHub Pages
+
+# Despliega el frontend automáticamente en cada push a la rama principal.
+# Usa VITE_USE_MOCK=true para que la demo funcione sin backend.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Solo un despliegue a la vez; cancelar el anterior si hay uno en cola
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Construir Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Ejecutar pruebas
+        working-directory: frontend
+        run: npm test -- --passWithNoTests --watchAll=false
+
+      - name: Construir para producción (modo sin backend)
+        working-directory: frontend
+        env:
+          VITE_USE_MOCK: "true"
+        run: npm run build
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Subir artefacto de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    name: Desplegar en Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,17 @@
+// El cliente inicializa el sistema en modo forzado por configuración y decide instanciar la clase gestora de almacenamiento en el navegador.
+STORAGE-ADAPTER-001 WHEN VITE_USE_MOCK is set to true THEN the application shall initialize the LocalStorageApiClient.
+
+// El cliente falla en detectar servicio activo del backend durante su inicio de componentes, de modo que delega como fallback a las funciones de almacenamiento en el navegador.
+STORAGE-ADAPTER-002 WHEN the HTTP backend is unreachable during initialization THEN the application shall fallback to the LocalStorageApiClient.
+
+// El cliente de red obtiene un código de estado fallido informando error en las entradas enviadas a un servidor que requiere el repacking en un error explícito.
+STORAGE-ADAPTER-003 WHEN the HttpApiClient receives a 400 status from the API THEN it shall throw a structured validation error to the caller.
+
+// El cliente de almacenamiento extrae las tareas que tiene en archivo local, estas deben estar ordenadas cronológicamente con las más nuevas al inicio de la lista.
+STORAGE-ADAPTER-004 WHEN the LocalStorageApiClient retrieves notes THEN it shall return them sorted by createdAt descending.
+
+// El cliente de almacenamiento agrega la tarea a sus registros en memoria y posteriormente aplica serialización del listado nuevo salvando un JSON entero al almacenamiento local.
+STORAGE-ADAPTER-005 WHEN the LocalStorageApiClient creates a new note THEN it shall serialize and save the entire notes array to localStorage.
+
+// El navegador presenta la saturación del segmento del caché imposibilitando guardar los cambios solicitados por la interfaz mediante el adaptador.
+STORAGE-ADAPTER-006 WHEN localStorage quota is exceeded during save THEN the LocalStorageApiClient shall throw a QuotaExceededError.

@@ -1,0 +1,17 @@
+// El formulario valida y entrega el contenido exitosamente al Adapter y por ende, al responder con asertividad el valor interior de texto se descarta para recibir la siguiente solicitud limpia.
+NOTES-UI-001 WHEN the user submits a valid note through the NoteForm THEN the form input shall be cleared upon success.
+
+// El usuario presiona la tecla enter enviando el requerimiento en estado crudo sin información sustancial alguna lo que desencadena una notificación en rojo advirtiendo validaciones fallidas.
+NOTES-UI-002 WHEN the user submits an empty title in the NoteForm THEN the UI shall display a validation error message inline.
+
+// El proceso visual experimenta tiempos de latencia natural mientras espera los códigos asíncronos desde red o almacenamiento para asegurar los cambios y prohíbe una inserción rápida concurrente desactivando su input y botón correspondientemente.
+NOTES-UI-003 WHEN a network request is in progress THEN the submit button in NoteForm shall be disabled.
+
+// El entorno visual del usuario es limpio pues no existe una lista previa o un repositorio guardado por el adaptador, por consiguiente el elemento listador provee un estado "vacío" o de mensaje de motivación sobre añadir la primera entrada.
+NOTES-UI-004 WHEN the notes list is empty THEN the NoteList component shall display an empty state message.
+
+// El estado interno o apariencia final del checkbox y tarea han de actualizarse al emitirse la solicitud y presionar la opción sin interrumpir masivamente a todo el flujo de vista del usuario.
+NOTES-UI-005 WHEN the user clicks a NoteItem toggle THEN the UI shall visually indicate the loading or toggled state.
+
+// El procesamiento del frontend falla captando una excepción profunda, ya sea por problemas de capacidad o errores desde el servidor HTTP informando que el fallo originado necesita un mensaje accesible del adaptador en pantalla principal.
+NOTES-UI-006 WHEN an adapter operation throws an error THEN the App shall display a localized error message to the user.
