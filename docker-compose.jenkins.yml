@@ -1,0 +1,34 @@
+# ==============================================================================
+# Orquestación de Jenkins Local para Clase de CI/CD — StudyNotes / TaskSync
+#
+# Uso:
+#   docker compose -f docker-compose.jenkins.yml up -d --build
+#
+# Interfaz web de Jenkins:
+#   http://localhost:8081
+#
+# Obtener contraseña inicial de administrador:
+#   docker exec studynotes-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+# ==============================================================================
+
+services:
+  jenkins:
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+    container_name: studynotes-jenkins
+    restart: unless-stopped
+    ports:
+      # Se expone en 8081 para no colisionar con el puerto 8080 de la API en Go
+      - "8081:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Montaje opcional de solo lectura del repositorio local para prácticas sin internet
+      - ./:/workspace/todoapp:ro
+
+volumes:
+  jenkins_home:
+    driver: local
