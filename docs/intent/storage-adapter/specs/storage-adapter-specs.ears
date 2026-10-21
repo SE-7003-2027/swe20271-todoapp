@@ -1,17 +1,17 @@
-// El cliente inicializa el sistema en modo forzado por configuración y decide instanciar la clase gestora de almacenamiento en el navegador.
-STORAGE-ADAPTER-001 WHEN VITE_USE_MOCK is set to true THEN the application shall initialize the LocalStorageApiClient.
+// Cuando VITE_USE_MOCK es igual a "true", createAdapter devuelve LocalStorageApiClient sin realizar llamadas de red.
+STORAGE-ADAPTER-001 WHEN VITE_USE_MOCK is set to "true" THEN createAdapter shall return an instance of LocalStorageApiClient without performing a network health check.
 
-// El cliente falla en detectar servicio activo del backend durante su inicio de componentes, de modo que delega como fallback a las funciones de almacenamiento en el navegador.
-STORAGE-ADAPTER-002 WHEN the HTTP backend is unreachable during initialization THEN the application shall fallback to the LocalStorageApiClient.
+// Cuando VITE_USE_MOCK no es "true" y el endpoint /healthz responde con éxito en menos de 2000ms, createAdapter devuelve HttpApiClient y delega las operaciones REST al backend.
+STORAGE-ADAPTER-002 WHEN VITE_USE_MOCK is not "true" and GET /healthz responds with HTTP 200 within 2000ms THEN createAdapter shall return an instance of HttpApiClient that executes getNotes, createNote, and toggleNote over REST.
 
-// El cliente de red obtiene un código de estado fallido informando error en las entradas enviadas a un servidor que requiere el repacking en un error explícito.
-STORAGE-ADAPTER-003 WHEN the HttpApiClient receives a 400 status from the API THEN it shall throw a structured validation error to the caller.
+// Cuando VITE_USE_MOCK no es "true" pero la petición a /healthz falla o supera los 2000ms, createAdapter selecciona LocalStorageApiClient como respaldo.
+STORAGE-ADAPTER-003 WHEN the GET /healthz request fails or times out after 2000ms THEN createAdapter shall fall back to returning an instance of LocalStorageApiClient.
 
-// El cliente de almacenamiento extrae las tareas que tiene en archivo local, estas deben estar ordenadas cronológicamente con las más nuevas al inicio de la lista.
-STORAGE-ADAPTER-004 WHEN the LocalStorageApiClient retrieves notes THEN it shall return them sorted by createdAt descending.
+// Cuando LocalStorageApiClient crea una nota, genera un identificador único, asigna el estado PENDING y la fecha ISO actual, y la guarda en localStorage bajo la clave "studynotes_v1".
+STORAGE-ADAPTER-004 WHEN LocalStorageApiClient.createNote is called with a title THEN it shall create a note with status PENDING and persist it in localStorage under key "studynotes_v1".
 
-// El cliente de almacenamiento agrega la tarea a sus registros en memoria y posteriormente aplica serialización del listado nuevo salvando un JSON entero al almacenamiento local.
-STORAGE-ADAPTER-005 WHEN the LocalStorageApiClient creates a new note THEN it shall serialize and save the entire notes array to localStorage.
+// Cuando LocalStorageApiClient obtiene las notas desde localStorage, devuelve el arreglo ordenado por fecha de creación descendente.
+STORAGE-ADAPTER-005 WHEN LocalStorageApiClient.getNotes is called THEN it shall return the stored notes sorted by createdAt descending.
 
-// El navegador presenta la saturación del segmento del caché imposibilitando guardar los cambios solicitados por la interfaz mediante el adaptador.
-STORAGE-ADAPTER-006 WHEN localStorage quota is exceeded during save THEN the LocalStorageApiClient shall throw a QuotaExceededError.
+// Cuando LocalStorageApiClient alterna el estado de una nota existente, invierte su estado entre PENDING y COMPLETED y persiste el cambio en localStorage.
+STORAGE-ADAPTER-006 WHEN LocalStorageApiClient.toggleNote is called with an existing note ID THEN it shall flip the note status between PENDING and COMPLETED and persist the updated list in localStorage.

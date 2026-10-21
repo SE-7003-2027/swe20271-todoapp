@@ -45,6 +45,7 @@ services:
     command: >
       sh -c '
         mkdir -p /cd-deploy/api;
+        chmod -R 777 /cd-deploy
         LAST_SUM="";
         PID="";
         echo "▶ [Staging API] Esperando a que Jenkins despliegue /cd-deploy/api/studynotes-api...";
@@ -81,11 +82,10 @@ services:
     command: >
       sh -c '
         mkdir -p /cd-deploy/web;
+        chmod -R 777 /cd-deploy
         if [ ! -f /cd-deploy/web/index.html ]; then
           cat <<EOF > /cd-deploy/web/index.html
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
+      <!DOCTYPE html> <html lang="es"> <head>
         <meta charset="UTF-8" />
         <title>Staging CD — StudyNotes / TaskSync</title>
         <style>
@@ -93,16 +93,13 @@ services:
           .card { background: white; padding: 2rem 2.5rem; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 520px; text-align: center; border-top: 4px solid #2563eb; }
           code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-size: 0.9em; }
         </style>
-      </head>
-      <body>
+      </head> <body>
         <div class="card">
           <h2>⏳ Entorno Staging (CD) Listo</h2>
           <p>Este servidor Nginx (<code>:8082</code>) está esperando el primer despliegue automático desde el pipeline de <strong>Jenkins</strong>.</p>
           <p>Ejecuta <strong>Build Now</strong> en <a href="http://localhost:8081">http://localhost:8081</a> y recarga esta página al finalizar la Etapa 6.</p>
         </div>
-      </body>
-      </html>
-      EOF
+      </body> </html> EOF
         fi;
         exec nginx -g "daemon off;"
       '

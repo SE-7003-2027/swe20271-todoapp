@@ -1,20 +1,23 @@
-// El usuario solicita crear una nota mediante una petición POST con un título válido y se recibe la nota creada exitosamente.
-NOTES-API-001 WHEN a POST request is made to /api/v1/notes with a valid title THEN the system shall create a new note and return a 201 Created status.
+// Cuando se envía una petición POST a /api/v1/notes con un título válido (1 a 100 caracteres tras recortar espacios), el sistema crea la nota con estado PENDING y devuelve 201 Created.
+NOTES-API-001 WHEN a POST request is made to /api/v1/notes with a valid title THEN the notes-api shall create a new note with status PENDING and return HTTP 201 Created with the created note JSON.
 
-// El usuario solicita crear una nota pero envía un título en blanco, por lo que el sistema debe rechazar la petición indicando un error en la validación.
-NOTES-API-002 WHEN a POST request is made to /api/v1/notes with an empty title THEN the system shall return a 400 Bad Request status with a validation error.
+// Cuando se envía una petición POST a /api/v1/notes con un título vacío, de solo espacios o que supera los 100 caracteres, el sistema rechaza la solicitud con 400 Bad Request.
+NOTES-API-002 WHEN a POST request is made to /api/v1/notes with an empty title after trimming or a title exceeding 100 characters THEN the notes-api shall return HTTP 400 Bad Request with a JSON error message.
 
-// El usuario solicita crear una nota excediendo el límite máximo de caracteres en el título (100), resultando en el rechazo por parte del servidor.
-NOTES-API-003 WHEN a POST request is made to /api/v1/notes with a title exceeding 100 characters THEN the system shall return a 400 Bad Request status with a validation error.
+// Cuando se consulta GET /api/v1/notes existiendo notas registradas, el sistema devuelve 200 OK con el arreglo ordenado por fecha de creación descendente (más recientes primero).
+NOTES-API-003 WHEN a GET request is made to /api/v1/notes THEN the notes-api shall return HTTP 200 OK with the list of notes ordered by createdAt descending.
 
-// El usuario obtiene su lista de notas existentes al acceder al endpoint, y el sistema entrega un arreglo con la información dispuesta desde la más reciente.
-NOTES-API-004 WHEN a GET request is made to /api/v1/notes THEN the system shall return a 200 OK status with a list of all notes ordered by newest first.
+// Cuando se consulta GET /api/v1/notes y el almacén no contiene notas, el sistema devuelve 200 OK con un arreglo JSON vacío [].
+NOTES-API-004 WHEN a GET request is made to /api/v1/notes and no notes exist THEN the notes-api shall return HTTP 200 OK with an empty JSON array [].
 
-// El usuario actualiza el estado de completado de una nota existente proveyendo su identificador único al endpoint correspondiente, lo que alterna el estado del registro.
-NOTES-API-005 WHEN a PATCH request is made to /api/v1/notes/{id}/status for an existing note THEN the system shall toggle its completed status and return a 200 OK status.
+// Cuando se envía PATCH /api/v1/notes/{id}/toggle para una nota existente, el sistema alterna atómicamente su estado entre PENDING y COMPLETED y devuelve 200 OK.
+NOTES-API-005 WHEN a PATCH request is made to /api/v1/notes/{id}/toggle for an existing note THEN the notes-api shall atomically toggle its status between PENDING and COMPLETED and return HTTP 200 OK.
 
-// El usuario intenta modificar el estado usando el identificador de una nota inexistente; el servidor le informa que el recurso no fue hallado.
-NOTES-API-006 WHEN a PATCH request is made to /api/v1/notes/{id}/status for a non-existent note THEN the system shall return a 404 Not Found status.
+// Cuando se envía PATCH /api/v1/notes/{id}/toggle para un identificador inexistente, el sistema devuelve 404 Not Found.
+NOTES-API-006 WHEN a PATCH request is made to /api/v1/notes/{id}/toggle for a non-existent note ID THEN the notes-api shall return HTTP 404 Not Found with a JSON error message.
 
-// El usuario ejecuta una petición cualquiera y ocurre un fallo grave en el sistema, produciéndose una respuesta que describe el error genérico.
-NOTES-API-007 WHEN an unhandled exception occurs in the server THEN the system shall return a 500 Internal Server Error status.
+// Cuando se consulta GET /healthz, el sistema responde con 200 OK y el cuerpo {"status":"ok"}.
+NOTES-API-007 WHEN a GET request is made to /healthz THEN the notes-api shall return HTTP 200 OK with JSON {"status":"ok"}.
+
+// En una prueba de integración o E2E sobre el servidor HTTP completo, la secuencia de crear una nota, listarla, alternar su estado a COMPLETED y volverla a consultar refleja los cambios de extremo a extremo.
+NOTES-API-008 WHEN a full HTTP lifecycle sequence (create note, list notes, toggle status, and re-fetch notes) is executed against the running server THEN the notes-api shall persist and return consistent state transitions across all endpoints.

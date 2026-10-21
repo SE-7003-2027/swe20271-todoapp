@@ -1,17 +1,20 @@
-// El formulario valida y entrega el contenido exitosamente al Adapter y por ende, al responder con asertividad el valor interior de texto se descarta para recibir la siguiente solicitud limpia.
-NOTES-UI-001 WHEN the user submits a valid note through the NoteForm THEN the form input shall be cleared upon success.
+// Cuando el usuario intenta enviar un título vacío o de solo espacios en NoteForm, se muestra el error "El título no puede estar vacío" sin invocar al adaptador.
+NOTES-UI-001 WHEN the user submits an empty or whitespace-only title in NoteForm THEN NoteForm shall display "El título no puede estar vacío" and shall not invoke the onSubmit callback.
 
-// El usuario presiona la tecla enter enviando el requerimiento en estado crudo sin información sustancial alguna lo que desencadena una notificación en rojo advirtiendo validaciones fallidas.
-NOTES-UI-002 WHEN the user submits an empty title in the NoteForm THEN the UI shall display a validation error message inline.
+// Cuando el usuario intenta enviar un título que supera los 100 caracteres en NoteForm, se muestra el error "El título no puede superar los 100 caracteres" sin invocar al adaptador.
+NOTES-UI-002 WHEN the user submits a title exceeding 100 characters in NoteForm THEN NoteForm shall display "El título no puede superar los 100 caracteres" and shall not invoke the onSubmit callback.
 
-// El proceso visual experimenta tiempos de latencia natural mientras espera los códigos asíncronos desde red o almacenamiento para asegurar los cambios y prohíbe una inserción rápida concurrente desactivando su input y botón correspondientemente.
-NOTES-UI-003 WHEN a network request is in progress THEN the submit button in NoteForm shall be disabled.
+// Cuando el usuario envía un título válido en NoteForm, se invoca onSubmit con el título recortado y se limpia el campo de entrada al completarse con éxito.
+NOTES-UI-003 WHEN the user submits a valid title in NoteForm THEN NoteForm shall invoke onSubmit with the trimmed title and clear the input field upon resolution.
 
-// El entorno visual del usuario es limpio pues no existe una lista previa o un repositorio guardado por el adaptador, por consiguiente el elemento listador provee un estado "vacío" o de mensaje de motivación sobre añadir la primera entrada.
-NOTES-UI-004 WHEN the notes list is empty THEN the NoteList component shall display an empty state message.
+// Cada NoteItem muestra el título de la nota, la fecha de creación formateada y la insignia de estado ("PENDIENTE" o "COMPLETADO").
+NOTES-UI-004 WHEN NoteItem renders a note THEN it shall display the note title, formatted creation timestamp, and the localized status badge ("PENDIENTE" for PENDING, "COMPLETADO" for COMPLETED).
 
-// El estado interno o apariencia final del checkbox y tarea han de actualizarse al emitirse la solicitud y presionar la opción sin interrumpir masivamente a todo el flujo de vista del usuario.
-NOTES-UI-005 WHEN the user clicks a NoteItem toggle THEN the UI shall visually indicate the loading or toggled state.
+// Al hacer clic en el botón de acción de NoteItem ("Completar" o "Reactivar"), se invoca onToggle con el identificador de la nota.
+NOTES-UI-005 WHEN the user clicks the toggle button in NoteItem THEN NoteItem shall invoke onToggle with the note ID.
 
-// El procesamiento del frontend falla captando una excepción profunda, ya sea por problemas de capacidad o errores desde el servidor HTTP informando que el fallo originado necesita un mensaje accesible del adaptador en pantalla principal.
-NOTES-UI-006 WHEN an adapter operation throws an error THEN the App shall display a localized error message to the user.
+// Cuando la lista de notas está vacía, NoteList muestra el mensaje "No hay notas todavía. ¡Crea tu primera nota arriba!".
+NOTES-UI-006 WHEN NoteList receives an empty array of notes THEN it shall display the empty-state message "No hay notas todavía. ¡Crea tu primera nota arriba!".
+
+// En la integración completa de App con el adaptador de almacenamiento, crear una nota desde el formulario la incorpora en la lista visible y hacer clic en su botón de estado la alterna entre PENDIENTE y COMPLETADO.
+NOTES-UI-007 WHEN the full App component is mounted and the user creates a note and clicks its toggle button THEN App shall persist the changes through the StorageAdapter and update the rendered NoteList from PENDIENTE to COMPLETADO.

@@ -1,8 +1,8 @@
 // =============================================================================
 // Jenkinsfile — Pipeline Declarativo de CI/CD para StudyNotes / TaskSync
-// Propósito educativo: Demostrar Integración Continua (CI), pruebas unitarias,
-// compilación y Despliegue Continuo (CD) hacia un entorno Staging Full-Stack
-// en http://localhost:8082 (conectado al backend real en Go, sin usar el mock).
+// Propósito educativo: Demostrar la Pirámide de Pruebas completa (Unitarias +
+// Integración + E2E Post-Despliegue) y el Despliegue Continuo (CD) hacia un
+// entorno Staging Full-Stack en http://localhost:8082 (con backend real en Go).
 // =============================================================================
 
 pipeline {
@@ -35,9 +35,9 @@ pipeline {
             }
         }
 
-        stage('2. Pruebas Unitarias — Backend (Go)') {
+        stage('2. Pruebas Unitarias e Integración — Backend (Go)') {
             steps {
-                echo '▶ Ejecutando suite de pruebas del backend (Repositorio, Servicio y Handler)...'
+                echo '▶ Ejecutando pruebas unitarias y de integración del backend (Repositorio, Servicio, Handler y Ciclo Completo)...'
                 dir('backend') {
                     sh 'go test ./... -v -timeout 60s'
                 }
@@ -56,9 +56,9 @@ pipeline {
             }
         }
 
-        stage('4. Pruebas Unitarias — Frontend (React + Jest)') {
+        stage('4. Pruebas Unitarias e Integración — Frontend (React + Jest)') {
             steps {
-                echo '▶ Instalando dependencias de Node.js y ejecutando pruebas con Jest...'
+                echo '▶ Instalando dependencias de Node.js y ejecutando pruebas unitarias y de integración (<App />) con Jest...'
                 dir('frontend') {
                     sh '''
                         npm ci
@@ -89,30 +89,39 @@ pipeline {
                     rm -rf /cd-deploy/web/*
                     cp -R frontend/dist/* /cd-deploy/web/
                 '''
-                echo '▶ Ejecutando Smoke Test contra el entorno Staging recién desplegado...'
+                echo '▶ Esperando a que el servidor en Staging esté listo...'
                 sh '''
                     for i in 1 2 3 4 5; do
                         if curl -fsS http://staging-web/healthz | grep -q '"status":"ok"'; then
-                            echo "✓ Smoke Test exitoso: La API en Go y el servidor web en Staging responden correctamente."
+                            echo "✓ Servidor Staging activo."
                             exit 0
                         fi
                         echo "Esperando a que el binario de Go en Staging inicie (intento $i/5)..."
                         sleep 2
                     done
-                    echo "✗ Error: El Smoke Test hacia http://staging-web/healthz no respondió a tiempo."
+                    echo "✗ Error: http://staging-web/healthz no respondió a tiempo."
                     exit 1
                 '''
+            }
+        }
+
+        stage('7. Pruebas E2E Post-Despliegue — Staging') {
+            steps {
+                echo '▶ Ejecutando suite E2E (NOTES-API-008) contra el entorno Staging desplegado en vivo (http://staging-web)...'
+                dir('backend') {
+                    sh 'E2E_BASE_URL=http://staging-web go test ./internal/handler -run TestNoteLifecycleIntegrationAndE2E -v -count=1'
+                }
             }
         }
     }
 
     post {
         success {
-            echo '✓ Pipeline CI/CD completado. Aplicación desplegada en vivo en: http://localhost:8082'
+            echo '✓ Pipeline CI/CD + Pruebas E2E completadas. Aplicación desplegada y verificada en: http://localhost:8082'
             archiveArtifacts artifacts: 'backend/bin/studynotes-api, frontend/dist/**/*', fingerprint: true
         }
         failure {
-            echo '✗ El pipeline se detuvo debido a un fallo en las pruebas, compilación o despliegue.'
+            echo '✗ El pipeline se detuvo debido a un fallo en las pruebas unitarias, integración, compilación o pruebas E2E post-despliegue.'
         }
         always {
             echo '▶ Ejecución de CI/CD finalizada.'

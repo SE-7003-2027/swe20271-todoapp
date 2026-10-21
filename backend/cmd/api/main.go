@@ -34,6 +34,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// @spec NOTES-API-008
 func main() {
 	// Obtener el puerto desde el entorno o usar el predeterminado
 	port := os.Getenv("PORT")

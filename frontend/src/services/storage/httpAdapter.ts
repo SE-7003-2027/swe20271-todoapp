@@ -1,11 +1,11 @@
 import { Note, StorageAdapter } from './types';
 
-// Adaptador para peticiones HTTP
+// Adaptador para peticiones HTTP hacia el backend en Go
 export class HttpApiClient implements StorageAdapter {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+    this.baseUrl = process.env.VITE_API_URL || 'http://localhost:8080';
   }
 
   // @spec STORAGE-ADAPTER-002

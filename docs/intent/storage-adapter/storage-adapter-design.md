@@ -1,35 +1,45 @@
 # LLD — Segmento: storage-adapter
 
 ## Propósito
-El propósito primario del adaptador de almacenamiento es el desacoplamiento de la interfaz gráfica y los estados subyacentes frente a la verdadera fuente de obtención de datos. Esto protege a los componentes de UI ante posibles caídas, migraciones de base de datos e inclusive entornos estáticos que carecen de backend propio.
+El propósito primario del adaptador de almacenamiento es desacoplar los componentes visuales de React de la fuente de datos subyacente. Esto permite que la aplicación opere indistintamente contra el backend real en Go (`HttpApiClient`) o de forma autónoma en el navegador (`LocalStorageApiClient`).
 
 ## Interfaz StorageAdapter
-La siguiente interfaz escrita en TypeScript rige el contrato que deben satisfacer todas las implementaciones:
+Definida en `frontend/src/services/storage/types.ts`:
 ```typescript
+export type NoteStatus = 'PENDING' | 'COMPLETED';
+
+export interface Note {
+  id: string;
+  title: string;
+  status: NoteStatus;
+  createdAt: string; // ISO 8601
+}
+
 export interface StorageAdapter {
   getNotes(): Promise<Note[]>;
   createNote(title: string): Promise<Note>;
-  toggleNoteStatus(id: string): Promise<Note>;
+  toggleNote(id: string): Promise<Note>;
 }
 ```
 
-## Estrategia de Selección de Adaptador
-1. Al momento de la inicialización de la SPA, se lee la variable de entorno `VITE_USE_MOCK=true`.
-2. Si esta configuración está encendida, o si la verificación de salud inicial asíncrona hacia el servidor REST falla de manera inequívoca, se decide instanciar `LocalStorageApiClient`.
-3. Si el parámetro en el entorno no fuerza un mockeo, y el backend responde en el healthcheck inicial, entonces el `HttpApiClient` es activado.
+## Estrategia de Selección de Adaptador (`createAdapter`)
+1. Al iniciar la aplicación, `createAdapter()` en `frontend/src/services/storage/index.ts` evalúa primero si `import.meta.env.VITE_USE_MOCK === 'true'`. Si es verdadero, devuelve `new LocalStorageApiClient()` inmediatamente sin realizar llamadas de red.
+2. En caso contrario, realiza una petición `GET` a `${baseUrl}/healthz` (donde `baseUrl` es `import.meta.env.VITE_API_URL ?? 'http://localhost:8080'`) con un tiempo límite de 2000 ms (`AbortSignal.timeout(2000)`).
+3. Si la respuesta es `200 OK`, instancia y devuelve `new HttpApiClient()`.
+4. Si la petición falla o excede el tiempo de espera, captura la excepción y devuelve `new LocalStorageApiClient()`.
 
 ## LocalStorageApiClient
-- **Clave del caché:** Se utiliza la clave predefinida `studynotes_data_v1` en el LocalStorage.
-- **Formato de datos:** Corresponde a una matriz codificada en formato JSON representando arreglos de objetos `Note`.
-- **Ordenamiento:** La estrategia es ordenar cada lectura de datos para presentar inicialmente el de fecha de creación más reciente (descendente cronológicamente), garantizando la consistencia visual esperada en `getNotes()`.
+- **Clave de almacenamiento:** `studynotes_v1`.
+- **Formato de datos:** Arreglo JSON de objetos `Note`.
+- **Ordenamiento:** `getNotes()` ordena las notas por `createdAt` descendente (más recientes primero).
 
 ## HttpApiClient
-- **URLs Base de destino:** Dictado por `VITE_API_BASE_URL` (por default `/api/v1`).
-- **Manejo de errores HTTP:** Transforma los errores (especialmente validaciones `400` u otros `500`) devolviendo excepciones fuertemente tipadas y formateadas hacia el nivel superior a fin de que la interfaz notifique al usuario.
+- **URL Base:** `import.meta.env.VITE_API_URL ?? 'http://localhost:8080'`.
+- **Operaciones:** Consume `GET /api/v1/notes`, `POST /api/v1/notes` y `PATCH /api/v1/notes/${id}/toggle`, lanzando un `Error` con mensaje en español cuando la respuesta HTTP no es exitosa (`!response.ok`).
 
 ## Tabla de Decisiones y Alternativas
 | Decisión | Opción elegida | Alternativas consideradas | Justificación |
 |----------|----------------|---------------------------|---------------|
-| Selección de adaptador | Autodetección o entorno estricto | Exclusivo por variable de entorno | Ofrece flexibilidad y permite el "cero-configuración", al tiempo que garantiza el estado offline para entornos que fallan sus conexiones. |
-| Generación de UUID local | La API estándar `crypto.randomUUID()` | Paquete NPM o de terceros | Disponible en todos los navegadores modernos y navegadores seguros; esto evita sobrecargar el bundle resultante. |
-| Clave en Storage | Uso de convención versionada (ej. `_v1`) | Clave corta sin revisión (`notes`) | Garantiza la mitigación de errores de deserialización cuando la interfaz cambie radicalmente en versiones futuras. |
+| Selección de adaptador | Autodetección con `/healthz` (timeout 2s) + bandera `VITE_USE_MOCK` | Solo variable de entorno en compilación | Permite que la app funcione sin configuración tanto con el backend encendido como sin conexión, y evita esperar 2s en despliegues estáticos como GitHub Pages donde `VITE_USE_MOCK=true`. |
+| Generación de UUID local | `crypto.randomUUID()` con respaldo matemático | Librería npm `uuid` | Soportado nativamente en navegadores y Node 20 sin incrementar el tamaño del bundle. |
+| Clave en `localStorage` | `studynotes_v1` | `notes` | El sufijo de versión facilita migraciones limpias del esquema local en futuras entregas. |

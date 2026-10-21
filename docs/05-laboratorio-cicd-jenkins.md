@@ -32,14 +32,17 @@ Tanto en GitHub Actions como en nuestro `Jenkinsfile` en la raíz del repositori
 
 ```mermaid
 flowchart LR
-    S1["Etapa 1\nDiagnóstico de Entorno\n(go, node, npm)"] --> S2["Etapa 2\nPruebas Backend\n(go test ./...)"]
-    S2 --> S3["Etapa 3\nCompilación Backend\n(bin/studynotes-api)"]
-    S3 --> S4["Etapa 4\nPruebas Frontend\n(npm ci + jest)"]
-    S4 --> S5["Etapa 5\nBuild Producción\n(tsc + vite build)"]
-    S5 --> S6["Etapa 6\nDespliegue Continuo (CD)\nStaging (:8082 / :8083)"]
+    S1["Etapa 1\nDiagnóstico"] --> S2["Etapa 2\nUnit + Integración\nBackend (Go)"]
+    S2 --> S3["Etapa 3\nCompilación\nBinario Go"]
+    S3 --> S4["Etapa 4\nUnit + Integración\nFrontend (Jest)"]
+    S4 --> S5["Etapa 5\nBuild Producción\n(Vite)"]
+    S5 --> S6["Etapa 6\nDespliegue CD\nStaging (:8082)"]
+    S6 --> S7["Etapa 7\nPruebas E2E Vivo\n(NOTES-API-008)"]
 ```
 
-> **Principio clave de CI/CD:** Si la **Etapa 2** (Pruebas del Backend) o la **Etapa 4** (Pruebas del Frontend) fallan, el pipeline se aborta inmediatamente y **nunca** llega a desplegar en el entorno Staging (`http://localhost:8082`).
+> **Principio clave de CI/CD y Pirámide de Pruebas:**
+> - **Etapas 2 y 4 (Unitarias + Integración en memoria):** Verifican tanto componentes individuales como la integración de capas (`NoteHandler -> NoteService -> MemoryRepository` en Go y `<App /> -> NoteForm -> NoteList -> StorageAdapter` en React). Si fallan, el pipeline se detiene antes de desplegar.
+> - **Etapa 7 (Pruebas E2E Post-Despliegue):** Una vez desplegada la nueva versión en `http://staging-web` (`:8082`), el pipeline ejecuta `TestNoteLifecycleIntegrationAndE2E` contra el servidor real (Nginx + binario Go) verificando la entrega del HTML y el ciclo completo de crear, listar y alternar estado de una nota.
 
 ### Coexistencia de Entornos y Mapa de Puertos
 

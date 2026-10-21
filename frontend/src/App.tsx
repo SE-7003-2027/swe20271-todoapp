@@ -4,6 +4,7 @@ import { createAdapter, LocalStorageApiClient } from './services/storage';
 import { NoteForm } from './components/NoteForm';
 import { NoteList } from './components/NoteList';
 
+// @spec NOTES-UI-007
 export default function App() {
   const [adapter, setAdapter] = useState<StorageAdapter | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);

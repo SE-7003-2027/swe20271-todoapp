@@ -1,27 +1,22 @@
 # LLD — Segmento: notes-ui
 
 ## Propósito
-El diseño principal de la capa front-end (React) es establecer las interacciones fluídas de la interfaz gráfica y mapear consistentemente los cambios de los elementos con la instancia del Adapter inyectado. Todo debe tener un enfoque en un código base sencillo, ligero, libre de abstracciones complejas.
+Definir la jerarquía de componentes en React, las reglas de validación en el cliente y la integración entre la interfaz gráfica y el `StorageAdapter`.
 
 ## Árbol de Componentes
-El layout general recae en un sistema de anidación simple:
-- `App` (Raíz)
-  - `NoteForm` (Control para registro de tareas)
-  - `NoteList` (Componente orquestador del renderizado en bucle)
-    - `NoteItem` (Entidad unitaria del bloque visual para alternar un registro)
+- `App` (`frontend/src/App.tsx`): Componente raíz que inicializa el adaptador con `createAdapter()`, gestiona el estado `notes`, muestra el indicador de modo sin conexión cuando el adaptador es `LocalStorageApiClient` y coordina `handleCreate` y `handleToggle`.
+  - `NoteForm` (`frontend/src/components/NoteForm.tsx`): Formulario controlado con validación de cliente (`trim`, no vacío y máximo 100 caracteres) y manejo de errores en línea.
+  - `NoteList` (`frontend/src/components/NoteList.tsx`): Renderiza el mensaje de estado vacío o la lista de componentes `NoteItem`.
+    - `NoteItem` (`frontend/src/components/NoteItem.tsx`): Muestra el título, fecha formateada en `es-MX`, insignia de estado (`PENDIENTE` / `COMPLETADO`) y botón de acción (`Completar` / `Reactivar`).
 
-## Flujo de Estado
-- **Notes State:** En la jerarquía principal y propagado como "properties" (props). Representa un arreglo de tareas recibidas por el Storage Adapter.
-- **Adapter Bootstrap:** Realizado a nivel de inicio mediante hooks en el componente superior de React; emite transiciones (banderas o *flags* visuales) tales como estados de carga ("Cargando configuraciones iniciales").
-- **Estados de Carga y Error:** Se centralizan en mecanismos directos de interrupción visual, deshabilitando todos los elementos de formulario activos y bloqueando clics hasta finalizar la respuesta correspondiente al Adapter para eludir transacciones duplicadas.
-
-## Validación del Cliente
-- **Limpieza (Trim) de Cadenas:** Toda captura antes del procesamiento retira prefijos de espacios inútiles en ambos extremos de la descripción para evaluar adecuadamente sus propiedades antes del paso por red.
-- **Reglas del límite de caracteres (100) y longitud cero:** Limitantes estrictas; sus alertas de validación correspondientes en el documento reaccionan si se incumple alguna regla informando visualmente de inmediato. Textos esperados y mostrados puramente en idioma español: "El título no puede estar vacío" y "El título excede el límite de 100 caracteres".
+## Flujo de Estado e Integración
+1. **Inicialización (`App`):** Al montarse, invoca `createAdapter()` y muestra `"Cargando aplicación..."` hasta que se resuelve la selección del adaptador y la primera carga de `getNotes()`.
+2. **Creación (`NoteForm` $\rightarrow$ `App` $\rightarrow$ `NoteList`):** Al enviar un título válido, `NoteForm` invoca `onSubmit(trimmedTitle)`. Si resuelve sin error, limpia el campo de texto y `App` recarga el listado desde el adaptador para reflejar la nueva nota en `NoteList`. Si el adaptador lanza un error, `NoteForm` muestra el banner de error y conserva el texto escrito por el usuario.
+3. **Alternancia (`NoteItem` $\rightarrow$ `App` $\rightarrow$ `NoteList`):** Al hacer clic en `Completar` o `Reactivar`, `App` invoca `adapter.toggleNote(id)` y actualiza el listado para reflejar el nuevo estado.
 
 ## Tabla de Decisiones y Alternativas
 | Decisión | Opción elegida | Alternativas consideradas | Justificación |
 |----------|----------------|---------------------------|---------------|
-| Motor CSS y estilos | Tailwind CSS | CSS Modules, SASS, Global Styles | Acelera la etapa visual drásticamente usando clases utilitarias predecibles. Minimiza la fricción para nombramientos. |
-| Suite de pruebas del Front-end | Vitest | Jest | Integración automática, robusta y optimizada si compartimos todo el andamiaje del ecosistema bajo herramientas Vite. |
-| Notificación de alertas | Errores en línea directamente (Inline UI) | Mensajes flotantes asíncronos (Toasts) | Incrementa la concisión y minimalismo esperado; presenta notificaciones localizadas a lo largo del flujo original del usuario y no satura su área global de pantalla. |
+| Estilos | Tailwind CSS v3 | CSS Modules, Styled Components | Clases utilitarias semánticas que mantienen los componentes concisos y fáciles de inspeccionar en clase. |
+| Runner de pruebas | Jest + `ts-jest` + React Testing Library | Vitest | Familiaridad pedagógica estándar con bloques `describe/test/expect` y pruebas de integración completas del árbol `<App />`. |
+| Notificación de errores | Banners de error en línea (Inline UI) | Notificaciones flotantes (Toasts) | Más simple, determinista en pruebas automatizadas y sin dependencias adicionales. |
