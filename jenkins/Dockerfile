@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Crear directorio compartido de despliegue continuo (CD) con permisos para jenkins
+RUN mkdir -p /cd-deploy/api /cd-deploy/web && chown -R jenkins:jenkins /cd-deploy
+
 # Verificar versiones instaladas durante la construcción de la imagen
 RUN go version && node --version && npm --version
 

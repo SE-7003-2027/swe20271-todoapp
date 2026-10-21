@@ -36,10 +36,21 @@ flowchart LR
     S2 --> S3["Etapa 3\nCompilación Backend\n(bin/studynotes-api)"]
     S3 --> S4["Etapa 4\nPruebas Frontend\n(npm ci + jest)"]
     S4 --> S5["Etapa 5\nBuild Producción\n(tsc + vite build)"]
-    S5 --> POST["Post-Ejecución\nArchivar Artefactos\n(archiveArtifacts)"]
+    S5 --> S6["Etapa 6\nDespliegue Continuo (CD)\nStaging (:8082 / :8083)"]
 ```
 
-> **Principio clave de CI:** Si la **Etapa 2** (Pruebas del Backend) o la **Etapa 4** (Pruebas del Frontend) fallan, el pipeline se aborta inmediatamente y **nunca** llega a empaquetar ni publicar artefactos defectuosos.
+> **Principio clave de CI/CD:** Si la **Etapa 2** (Pruebas del Backend) o la **Etapa 4** (Pruebas del Frontend) fallan, el pipeline se aborta inmediatamente y **nunca** llega a desplegar en el entorno Staging (`http://localhost:8082`).
+
+### Coexistencia de Entornos y Mapa de Puertos
+
+El entorno de despliegue continuo de Jenkins está diseñado para **coexistir sin conflictos** con el entorno de desarrollo local y utiliza el **backend real en Go** (sin forzar el mock):
+
+| Entorno | Puerto | Servicio |
+|---|---|---|
+| **Desarrollo Local** | `http://localhost:5173` y `:8080` | `npm run dev` (Vite) y API Go local |
+| **Servidor CI/CD** | `http://localhost:8081` | Interfaz web de **Jenkins** |
+| **Staging Web (CD de Jenkins)** | `http://localhost:8082` | SPA de React desplegada por Jenkins + Proxy Nginx hacia Staging API |
+| **Staging API (CD de Jenkins)** | `http://localhost:8083` | Binario `studynotes-api` en Go recién compilado y desplegado por Jenkins |
 
 ---
 
@@ -99,17 +110,17 @@ Copiar la cadena alfanumérica que aparece en la terminal.
    ```
 7. Hacer clic en **Save** (Guardar).
 
-### Paso 3: Disparar la primera construcción
-1. En la página del proyecto `studynotes-tasksync-pipeline`, hacer clic en **Build Now** (Construir ahora) en el menú izquierdo.
-2. Observar en la vista **Stage View** cómo avanzan las 5 etapas en verde:
+### Paso 3: Disparar la primera construcción y ver la app desplegada
+1. Antes de iniciar el build, abrir en otra pestaña **`http://localhost:8082`** para mostrar la pantalla de espera del entorno **Staging (CD)**.
+2. En la página del proyecto `studynotes-tasksync-pipeline` en Jenkins (`http://localhost:8081`), hacer clic en **Build Now** (Construir ahora).
+3. Observar en la vista **Stage View** cómo avanzan las 6 etapas en verde:
    - `1. Diagnóstico del Entorno`
    - `2. Pruebas Unitarias — Backend (Go)`
    - `3. Compilación — Backend (Go)`
    - `4. Pruebas Unitarias — Frontend (React + Jest)`
    - `5. Construcción de Producción — Frontend (Vite)`
-3. Al finalizar, verificar en la parte superior de la ejecución los **Build Artifacts** archivados automáticamente:
-   - `backend/bin/studynotes-api` (binario ejecutable de Linux compilado en Go).
-   - `frontend/dist/index.html` y `frontend/dist/assets/...` (sitio estático compilado con Vite).
+   - `6. Despliegue Continuo (CD) — Entorno Staging` *(publica el binario en Go y el frontend en el volumen compartido y ejecuta un Smoke Test contra `/healthz`)*
+4. Al finalizar la Etapa 6, recargar **`http://localhost:8082`** y usar la aplicación en vivo (conectada a su propio backend en Go recién compilado en `staging-api`, sin usar el mock).
 
 ---
 

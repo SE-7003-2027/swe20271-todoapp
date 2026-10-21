@@ -1,14 +1,13 @@
 # ==============================================================================
-# Orquestación de Jenkins Local para Clase de CI/CD — StudyNotes / TaskSync
+# Orquestación de Jenkins + Entorno Staging CD — StudyNotes / TaskSync
+#
+# Servicios que levanta este archivo (coexisten con el desarrollo local):
+#   - jenkins     (http://localhost:8081) -> Servidor de CI/CD
+#   - staging-web (http://localhost:8082) -> App React desplegada por Jenkins
+#   - staging-api (http://localhost:8083) -> API Go desplegada por Jenkins
 #
 # Uso:
 #   docker compose -f docker-compose.jenkins.yml up -d --build
-#
-# Interfaz web de Jenkins:
-#   http://localhost:8081
-#
-# Obtener contraseña inicial de administrador:
-#   docker exec studynotes-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 # ==============================================================================
 
 services:
@@ -19,16 +18,97 @@ services:
     container_name: studynotes-jenkins
     restart: unless-stopped
     ports:
-      # Se expone en 8081 para no colisionar con el puerto 8080 de la API en Go
+      # Se expone en 8081 para no colisionar con el puerto 8080 de desarrollo local
       - "8081:8080"
       - "50000:50000"
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
     volumes:
       - jenkins_home:/var/jenkins_home
+      # Volumen compartido donde la Etapa 6 del Jenkinsfile publica la app compilada
+      - jenkins_cd_artifacts:/cd-deploy
       # Montaje opcional de solo lectura del repositorio local para prácticas sin internet
       - ./:/workspace/todoapp:ro
 
+  staging-api:
+    image: alpine:3.20
+    container_name: studynotes-staging-api
+    restart: unless-stopped
+    ports:
+      # Puerto dedicado en el host para inspeccionar directamente la API de Staging
+      - "8083:8080"
+    environment:
+      - PORT=8080
+    volumes:
+      - jenkins_cd_artifacts:/cd-deploy
+    # Vigila el binario publicado por Jenkins y lo (re)inicia automáticamente cuando cambia
+    command: >
+      sh -c '
+        mkdir -p /cd-deploy/api;
+        LAST_SUM="";
+        PID="";
+        echo "▶ [Staging API] Esperando a que Jenkins despliegue /cd-deploy/api/studynotes-api...";
+        while true; do
+          if [ -f /cd-deploy/api/studynotes-api ]; then
+            NEW_SUM=$$(md5sum /cd-deploy/api/studynotes-api | awk "{print \$$1}");
+            if [ "$$NEW_SUM" != "$$LAST_SUM" ]; then
+              echo "▶ [Staging API] Nueva versión detectada ($$NEW_SUM). Reiniciando servidor Go...";
+              if [ -n "$$PID" ]; then kill "$$PID" 2>/dev/null || true; fi;
+              cp /cd-deploy/api/studynotes-api /tmp/studynotes-api-run;
+              chmod +x /tmp/studynotes-api-run;
+              /tmp/studynotes-api-run &
+              PID=$$!;
+              LAST_SUM="$$NEW_SUM";
+            fi;
+          fi;
+          sleep 2;
+        done
+      '
+
+  staging-web:
+    image: nginx:1.27-alpine
+    container_name: studynotes-staging-web
+    restart: unless-stopped
+    depends_on:
+      - staging-api
+    ports:
+      # Puerto dedicado para abrir la aplicación desplegada por Jenkins en el navegador
+      - "8082:80"
+    volumes:
+      - jenkins_cd_artifacts:/cd-deploy
+      - ./jenkins/nginx-staging.conf:/etc/nginx/conf.d/default.conf:ro
+    # Crea una página de bienvenida si aún no se ha corrido el primer build en Jenkins
+    command: >
+      sh -c '
+        mkdir -p /cd-deploy/web;
+        if [ ! -f /cd-deploy/web/index.html ]; then
+          cat <<EOF > /cd-deploy/web/index.html
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Staging CD — StudyNotes / TaskSync</title>
+        <style>
+          body { font-family: system-ui, sans-serif; background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .card { background: white; padding: 2rem 2.5rem; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 520px; text-align: center; border-top: 4px solid #2563eb; }
+          code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-size: 0.9em; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>⏳ Entorno Staging (CD) Listo</h2>
+          <p>Este servidor Nginx (<code>:8082</code>) está esperando el primer despliegue automático desde el pipeline de <strong>Jenkins</strong>.</p>
+          <p>Ejecuta <strong>Build Now</strong> en <a href="http://localhost:8081">http://localhost:8081</a> y recarga esta página al finalizar la Etapa 6.</p>
+        </div>
+      </body>
+      </html>
+      EOF
+        fi;
+        exec nginx -g "daemon off;"
+      '
+
 volumes:
   jenkins_home:
+    driver: local
+  jenkins_cd_artifacts:
     driver: local
